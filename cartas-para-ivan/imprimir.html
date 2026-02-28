@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cartas (orden de llegada)</title>
+  <style>
+    body{margin:0;font-family:system-ui,Segoe UI,Arial;background:#0b1020;color:#e5e7eb;}
+    .wrap{max-width:920px;margin:26px auto;padding:0 14px;}
+    .card{border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(255,255,255,.06);padding:14px 14px 16px;margin:12px 0;}
+    h2{margin:0 0 10px}
+    .muted{color:rgba(229,231,235,.78);line-height:1.45;font-size:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{padding:12px 14px;border:0;border-radius:14px;cursor:pointer;font-weight:800}
+    .btn{background:#e5e7eb;color:#0b1020}
+    .btn2{background:#ff2d55;color:#fff}
+    .btn3{background:#111827;color:#fff;border:1px solid rgba(255,255,255,.14)}
+    #status{margin-top:10px;white-space:pre-wrap;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;font-size:12px;color:rgba(229,231,235,.9)}
+    .warn{color:#ffd18a}
+
+    /* impresión texto */
+    #printArea{display:none;}
+    @media print{
+      .wrap{display:none;}
+      #printArea{display:block;}
+      .page{
+        page-break-after: always;
+        padding: 2.5cm;
+        font-family: Georgia, "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.25;
+        white-space: pre-wrap;
+        color:#000;
+      }
+      .page:last-child{page-break-after:auto;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Cartas (orden de llegada)</h2>
+
+    <div class="card">
+      <div class="muted">
+        Este archivo funciona <b>solo en tu compu</b>.
+        <br><span class="warn">No lo subas a internet ni lo compartas</span> (contiene tus claves).
+        <br><br>
+        - <b>Imprimir textos</b>: imprime cartas escritas en texto (descifradas localmente).
+        <br>
+        - <b>Descargar PDFs</b>: descarga cartas escaneadas en PDF (en orden de llegada).
+        <br><br>
+        <b>No se descargan fotos.</b>
+      </div>
+
+      <div class="row">
+        <button class="btn2" id="printText">Imprimir textos</button>
+        <button class="btn" id="dlpdf">Descargar PDFs</button>
+        <button class="btn3" id="test">Probar conexión</button>
+      </div>
+
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <div id="printArea"></div>
+
+<script>
+/** CONFIG **/
+const SUPABASE_URL = "https://rjbsaqslkzcuhjlmputd.supabase.co";
+const BUCKET = "fotos";
+
+// ⚠️ PEGÁ ACÁ tu service_role key (solo local)
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// ⚠️ PEGÁ ACÁ tu private key (pkcs8 base64) (solo local)
+const PRIVATE_KEY_B64 = "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";
+
+/** helpers **/
+const $ = (id) => document.getElementById(id);
+const b64ToBytes = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+const bytesToText = (bytes) => new TextDecoder().decode(bytes);
+
+async function supaFetch(path, options){
+  return fetch(`${SUPABASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "apikey": SERVICE_ROLE_KEY,
+      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+      ...(options?.headers || {})
+    }
+  });
+}
+
+async function fetchAllCartas(){
+  // NO traemos foto_path (para evitar cualquier uso accidental)
+  const res = await supaFetch(`/rest/v1/cartas?select=id,created_at,ciphertext,pdf_path&order=created_at.asc`, {
+    method: "GET"
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/** ---- DESCARGA PDFs ---- **/
+async function createSignedUrl(path, expiresInSec=600){
+  const res = await supaFetch(`/storage/v1/object/sign/${BUCKET}/${encodeURIComponent(path)}`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ expiresIn: expiresInSec })
+  });
+  if(!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return SUPABASE_URL + data.signedURL;
+}
+
+async function downloadBlob(url, filename){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("No se pudo descargar: " + filename);
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 1500);
+}
+
+/** ---- IMPRESIÓN TEXTO (descifrado) ---- **/
+async function importPrivateKey(privateB64){
+  const pkcs8 = b64ToBytes(privateB64).buffer;
+  return crypto.subtle.importKey(
+    "pkcs8",
+    pkcs8,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["decrypt"]
+  );
+}
+function parseHybridB64(cipherB64){
+  const data = b64ToBytes(cipherB64);
+  let o = 0;
+  const ivLen = data[o++];
+  const iv = data.slice(o, o+ivLen); o += ivLen;
+  const encLen = (data[o++] << 8) | data[o++];
+  const encAes = data.slice(o, o+encLen); o += encLen;
+  const ct = data.slice(o);
+  return { iv, encAes, ct };
+}
+async function hybridDecrypt(privateKey, cipherB64){
+  const { iv, encAes, ct } = parseHybridB64(cipherB64);
+  const rawAes = new Uint8Array(await crypto.subtle.decrypt({name:"RSA-OAEP"}, privateKey, encAes));
+  const aesKey = await crypto.subtle.importKey("raw", rawAes, {name:"AES-GCM"}, false, ["decrypt"]);
+  const pt = new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM", iv}, aesKey, ct));
+  return bytesToText(pt);
+}
+
+/** UI actions **/
+function setStatus(t){ $("status").textContent = t; }
+
+$("test").onclick = async () => {
+  setStatus("Probando conexión…");
+  try{
+    const rows = await fetchAllCartas();
+    const nText = rows.filter(r => r.ciphertext).length;
+    const nPdf  = rows.filter(r => r.pdf_path).length;
+    setStatus(`OK.\nTotal: ${rows.length}\nTextos: ${nText}\nPDFs: ${nPdf}\n(orden: created_at asc)`);
+  }catch(e){
+    setStatus("Error: " + (e.message || String(e)));
+  }
+};
+
+$("dlpdf").onclick = async () => {
+  setStatus("Buscando cartas…");
+  try{
+    const rows = await fetchAllCartas();
+    const pdfs = rows.filter(r => r.pdf_path);
+
+    if(pdfs.length === 0){
+      setStatus("No hay PDFs para descargar.");
+      return;
+    }
+
+    setStatus(`PDFs encontrados: ${pdfs.length}\nDescargando (orden de llegada)…`);
+
+    for(let i=0;i<pdfs.length;i++){
+      const r = pdfs[i];
+      const signed = await createSignedUrl(r.pdf_path, 600);
+      const num = String(i+1).padStart(3,"0");
+      const filename = `carta_pdf_${num}_id${r.id}.pdf`;
+      setStatus(`Descargando ${i+1}/${pdfs.length}: ${filename}`);
+      await downloadBlob(signed, filename);
+      await new Promise(res => setTimeout(res, 650)); // pausa para evitar bloqueo
+    }
+
+    setStatus(`Listo. Descargados ${pdfs.length} PDF(s).`);
+  }catch(e){
+    setStatus("Error: " + (e.message || String(e)));
+  }
+};
+
+$("printText").onclick = async () => {
+  setStatus("Buscando cartas…");
+  try{
+    const rows = await fetchAllCartas();
+    const texts = rows.filter(r => r.ciphertext);
+
+    if(texts.length === 0){
+      setStatus("No hay cartas en texto para imprimir.");
+      return;
+    }
+
+    setStatus(`Textos encontrados: ${texts.length}\nDescifrando localmente…`);
+    const privKey = await importPrivateKey(PRIVATE_KEY_B64);
+
+    const printArea = document.getElementById("printArea");
+    printArea.innerHTML = "";
+
+    for(let i=0;i<texts.length;i++){
+      const t = await hybridDecrypt(privKey, texts[i].ciphertext);
+      const page = document.createElement("div");
+      page.className = "page";
+      page.textContent = (t || "").trim();
+      printArea.appendChild(page);
+    }
+
+    setStatus("Abriendo impresión…");
+    window.print();
+
+    setTimeout(() => {
+      printArea.innerHTML = "";
+      setStatus("Hecho. (Contenido limpiado)");
+    }, 1500);
+
+  }catch(e){
+    setStatus("Error: " + (e.message || String(e)));
+  }
+};
+</script>
+</body>
+</html>
