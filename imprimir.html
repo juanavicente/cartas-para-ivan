@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cartas (orden de llegada)</title>
+  <style>
+    body{margin:0;font-family:system-ui,Segoe UI,Arial;background:#0b1020;color:#e5e7eb;}
+    .wrap{max-width:920px;margin:26px auto;padding:0 14px;}
+    .card{border:1px solid rgba(255,255,255,.12);border-radius:18px;background:rgba(255,255,255,.06);padding:14px 14px 16px;margin:12px 0;}
+    h2{margin:0 0 10px}
+    .muted{color:rgba(229,231,235,.78);line-height:1.45;font-size:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{padding:12px 14px;border:0;border-radius:14px;cursor:pointer;font-weight:800}
+    .btn{background:#e5e7eb;color:#0b1020}
+    .btn2{background:#ff2d55;color:#fff}
+    .btn3{background:#111827;color:#fff;border:1px solid rgba(255,255,255,.14)}
+    #status{margin-top:10px;white-space:pre-wrap;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;font-size:12px;color:rgba(229,231,235,.9)}
+    .warn{color:#ffd18a}
+
+    /* impresión texto */
+    #printArea{display:none;}
+    @media print{
+      .wrap{display:none;}
+      #printArea{display:block;}
+      .page{
+        page-break-after: always;
+        padding: 2.5cm;
+        font-family: Georgia, "Times New Roman", Times, serif;
+        font-size: 12pt;
+        line-height: 1.25;
+        white-space: pre-wrap;
+        color:#000;
+      }
+      .page:last-child{page-break-after:auto;}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Cartas (orden de llegada)</h2>
+
+    <div class="card">
+      <div class="muted">
+        Este archivo funciona <b>solo en tu compu</b>.
+        <br><span class="warn">No lo subas a internet ni lo compartas</span> (contiene tus claves).
+        <br><br>
+        - <b>Imprimir textos</b>: imprime cartas escritas en texto (descifradas localmente).
+        <br>
+        - <b>Descargar PDFs</b>: descarga cartas escaneadas en PDF (en orden de llegada).
+        <br><br>
+        <b>No se descargan fotos.</b>
+      </div>
+
+      <div class="row">
+        <button class="btn2" id="printText">Imprimir textos</button>
+        <button class="btn" id="dlpdf">Descargar PDFs</button>
+        <button class="btn3" id="test">Probar conexión</button>
+      </div>
+
+      <div id="status"></div>
+    </div>
+  </div>
+
+  <div id="printArea"></div>
+
+<script>
+/** CONFIG **/
+const SUPABASE_URL = "https://rjbsaqslkzcuhjlmputd.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_sWlRTv7b0wO8XCX2Hlc3Pw_20lgnHcx";
+
+// ⚠️ PEGÁ ACÁ tu private key (pkcs8 base64) (solo local)
+const PRIVATE_KEY_B64 = "";
+
+/** helpers **/
+const $ = (id) => document.getElementById(id);
+const b64ToBytes = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+const bytesToText = (bytes) => new TextDecoder().decode(bytes);
+
+async function supaFetch(path, options){
+  return fetch(`${SUPABASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      ...(options?.headers || {})
+    }
+  });
+}
+
+async function fetchAllCartas(){
+  // NO traemos foto_path (para evitar cualquier uso accidental)
+  const res = await supaFetch(`/rest/v1/cartas?select=id,created_at,ciphertext,pdf_path&order=created_at.asc`, {
+    method: "GET"
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+/** ---- DESCARGA PDFs ---- **/
+async function createSignedUrl(path){
+  const res = await fetch(`/.netlify/functions/sign-pdf?path=${encodeURIComponent(path)}`);
+  if(!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  return data.url; // ya viene firmada
+}
+  
+async function downloadBlob(url, filename){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error("No se pudo descargar: " + filename);
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  }, 1500);
+}
+
+/** ---- IMPRESIÓN TEXTO (descifrado) ---- **/
+async function importPrivateKey(privateB64){
+  const pkcs8 = b64ToBytes(privateB64).buffer;
+  return crypto.subtle.importKey(
+    "pkcs8",
+    pkcs8,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["decrypt"]
+  );
+}
+function parseHybridB64(cipherB64){
+  const data = b64ToBytes(cipherB64);
+  let o = 0;
+  const ivLen = data[o++];
+  const iv = data.slice(o, o+ivLen); o += ivLen;
+  const encLen = (data[o++] << 8) | data[o++];
+  const encAes = data.slice(o, o+encLen); o += encLen;
+  const ct = data.slice(o);
+  return { iv, encAes, ct };
+}
+async function hybridDecrypt(privateKey, cipherB64){
+  const { iv, encAes, ct } = parseHybridB64(cipherB64);
+  const rawAes = new Uint8Array(await crypto.subtle.decrypt({name:"RSA-OAEP"}, privateKey, encAes));
+  const aesKey = await crypto.subtle.importKey("raw", rawAes, {name:"AES-GCM"}, false, ["decrypt"]);
+  const pt = new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM", iv}, aesKey, ct));
+  return bytesToText(pt);
+}
+
+/** UI actions **/
+function setStatus(t){ $("status").textContent = t; }
+
+$("test").onclick = async () => {
+  setStatus("Probando conexión…");
+  try{
+    const rows = await fetchAllCartas();
+    const nText = rows.filter(r => r.ciphertext).length;
+    const nPdf  = rows.filter(r => r.pdf_path).length;
+    setStatus(`OK.\nTotal: ${rows.length}\nTextos: ${nText}\nPDFs: ${nPdf}\n(orden: created_at asc)`);
+  }catch(e){
+    setStatus("Error: " + (e.message || String(e)));
+  }
+};
+
+$("dlpdf").onclick = async () => {
+  setStatus("Buscando cartas…");
+  try{
+    const rows = await fetchAllCartas();
+    const pdfs = rows.filter(r => r.pdf_path);
+
+    if(pdfs.length === 0){
+      setStatus("No hay PDFs para descargar.");
+      return;
+    }
+
+    setStatus(`PDFs encontrados: ${pdfs.length}\nDescargando (orden de llegada)…`);
+
+    for(let i=0;i<pdfs.length;i++){
+      const r = pdfs[i];
+      const signed = await createSignedUrl(r.pdf_path, 600);
+      const num = String(i+1).padStart(3,"0");
+      const filename = `carta_pdf_${num}_id${r.id}.pdf`;
+      setStatus(`Descargando ${i+1}/${pdfs.length}: ${filename}`);
+      await downloadBlob(signed, filename);
+      await new Promise(res => setTimeout(res, 650)); // pausa para evitar bloqueo
+    }
+
+    setStatus(`Listo. Descargados ${pdfs.length} PDF(s).`);
+  }catch(e){
+    setStatus("Error: " + (e.message || String(e)));
+  }
+};
+
+$("printText").onclick = async () => {
+  setStatus("Buscando cartas…");
+  try{
+    const rows = await fetchAllCartas();
+    const texts = rows.filter(r => r.ciphertext);
+
+    if(texts.length === 0){
+      setStatus("No hay cartas en texto para imprimir.");
+      return;
+    }
+
+    setStatus(`Textos encontrados: ${texts.length}\nDescifrando localmente…`);
+    const privKey = await importPrivateKey(PRIVATE_KEY_B64);
+
+    const printArea = document.getElementById("printArea");
+    printArea.innerHTML = "";
+
+    for(let i=0;i<texts.length;i++){
+      const t = await hybridDecrypt(privKey, texts[i].ciphertext);
+      const page = document.createElement("div");
+      page.className = "page";
+      page.textContent = (t || "").trim();
+      printArea.appendChild(page);
+    }
+
+    setStatus("Abriendo impresión…");
+    window.print();
+
+    setTimeout(() => {
+      printArea.innerHTML = "";
+      setStatus("Hecho. (Contenido limpiado)");
+    }, 1500);
+
+  }catch(e){
+    setStatus("Error: " + (e.message || String(e)));
+  }
+};
+</script>
+</body>
+
+</html>
