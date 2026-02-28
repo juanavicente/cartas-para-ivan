@@ -100,13 +100,15 @@ async function fetchAllCartas(){
 const SITE_ORIGIN = "https://cartas-para-ivan.netlify.app";
 
 async function createSignedUrl(path){
-  const res = await fetch(`${SITE_ORIGIN}/.netlify/functions/sign-pdf?path=${encodeURIComponent(path)}`);
+  const fn = new URL("/.netlify/functions/sign-pdf", window.location.origin);
+  fn.searchParams.set("path", path);
+
+  const res = await fetch(fn.toString());
   const text = await res.text();
   if(!res.ok) throw new Error(text || `HTTP ${res.status}`);
   const data = JSON.parse(text);
   return data.url;
 }
-  
 async function downloadBlob(url, filename){
   const res = await fetch(url);
   if(!res.ok) throw new Error("No se pudo descargar: " + filename);
