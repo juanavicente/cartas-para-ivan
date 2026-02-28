@@ -1,4 +1,13 @@
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "GET,OPTIONS",
+};
 exports.handler = async (event) => {
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers: cors, body: "" };
+  }
+
   try {
     if (event.httpMethod !== "GET") {
       return { statusCode: 405, body: "Method Not Allowed" };
@@ -6,7 +15,7 @@ exports.handler = async (event) => {
 
     const path = event.queryStringParameters?.path;
     if (!path) {
-      return { statusCode: 400, body: "Missing ?path=" };
+      return { statusCode: 400, headers: cors, body: "Missing ?path=" };
     }
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -35,7 +44,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...cors, "Content-Type": "application/json" },
       body: JSON.stringify({ url: `${SUPABASE_URL}${data.signedURL}` }),
     };
   } catch (e) {
