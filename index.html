@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carta</title>
+
+  <!-- Tipografías (permitidas) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      /* rojo vibrante + crema */
+      --red: #ff2d55;
+      --red2:#ff003d;
+      --pink:#ff7aa6;
+      --cream:#fff3e6;
+      --cream2:#ffe7d2;
+      --ink:#1b0b0d;
+      --stroke: rgba(27,11,13,.20);
+      --shadow: 0 22px 70px rgba(0,0,0,.18);
+      --r: 22px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 520px at 20% 10%, rgba(255,45,85,.24), transparent 55%),
+        radial-gradient(900px 520px at 85% 30%, rgba(255,243,230,.30), transparent 60%),
+        linear-gradient(180deg, #ffb3c7, #ffd3c5 55%, #fff3e6);
+      overflow-x:hidden;
+    }
+
+    /* grain suave */
+    body:before{
+      content:"";
+      position:fixed; inset:0;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.10'/%3E%3C/svg%3E");
+      mix-blend-mode:multiply;
+      pointer-events:none;
+      opacity:.28;
+    }
+
+    .wrap{max-width:980px;margin:22px auto;padding:0 14px 56px;position:relative;z-index:1;}
+    .hidden{display:none !important}
+
+    /* ---------- PANTALLA 1 (sobre, “video vibe”) ---------- */
+    .screen1{
+      min-height: calc(100vh - 60px);
+      display:grid;
+      place-items:center;
+      padding: 24px 0;
+    }
+
+    .s1Card{
+      width:min(680px, 94vw);
+      border:2px solid var(--ink);
+      background: linear-gradient(180deg, rgba(255,243,230,.92), rgba(255,231,210,.92));
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .s1Top{
+      padding: 14px 16px;
+      border-bottom:2px solid var(--ink);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      background: rgba(255,45,85,.12);
+    }
+
+    .miniNav{
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+      font-size:12px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.06em;
+    }
+    .pill{
+      border:1.8px solid var(--ink);
+      padding:7px 10px;border-radius:999px;
+      background: rgba(255,243,230,.75);
+    }
+
+    .s1Body{padding: 18px 18px 22px;text-align:center;}
+
+    .s1Title{
+      font-family:"Instrument Serif", serif;
+      font-size: 44px;
+      letter-spacing:-.02em;
+      margin: 6px 0 6px;
+    }
+    .s1Sub{
+      margin:0 auto 12px;
+      max-width:48ch;
+      font-size:15px;
+      line-height:1.45;
+    }
+
+    .onlyLine{
+      display:inline-flex;align-items:center;gap:10px;
+      padding:10px 12px;border-radius:999px;
+      border:2px solid var(--ink);
+      background: rgba(255,45,85,.10);
+      font-weight:700;
+      font-size: 13px;
+    }
+    .heartDot{width:10px;height:10px;border-radius:99px;background:var(--red);box-shadow:0 0 0 2px rgba(27,11,13,.14);}
+
+    /* Sobre animado */
+    .envWrap{
+      margin: 12px auto 14px;
+      width: min(520px, 92vw);
+      aspect-ratio: 4 / 2.45;
+      position:relative;
+      perspective: 1000px;
+    }
+
+    .envelope{
+      position:absolute; inset:0;
+      border-radius: 22px;
+      border: 2px solid var(--ink);
+      background: linear-gradient(180deg, rgba(255,45,85,.20), rgba(255,45,85,.10));
+      box-shadow: 0 26px 70px rgba(0,0,0,.14);
+      overflow:hidden;
+      transform: translateZ(0);
+    }
+
+    .envBack{
+      position:absolute; inset:0;
+      background:
+        radial-gradient(520px 220px at 50% 0%, rgba(255,45,85,.26), transparent 65%),
+        linear-gradient(180deg, rgba(0,0,0,.06), transparent);
+    }
+
+    .paper{
+      position:absolute;
+      left: 7%;
+      right: 7%;
+      bottom: 10%;
+      height: 74%;
+      background: linear-gradient(180deg, rgba(255,243,230,.96), rgba(255,231,210,.96));
+      border-radius: 16px;
+      border: 2px solid rgba(27,11,13,.22);
+      transform: translateY(30%);
+      transition: transform 720ms cubic-bezier(.2,.95,.2,1);
+      z-index:2;
+      overflow:hidden;
+    }
+    .paper:before{
+      content:"";
+      position:absolute; inset:14px 16px auto;
+      height: 72%;
+      background:
+        linear-gradient(180deg, rgba(255,45,85,.18), transparent 40%),
+        repeating-linear-gradient(180deg, rgba(27,11,13,.18), rgba(27,11,13,.18) 1px, transparent 1px, transparent 12px);
+      opacity:.45;
+      border-radius: 10px;
+    }
+
+    .flap{
+      position:absolute;
+      left:-2px; right:-2px; top:-2px;
+      height: 58%;
+      transform-origin: top center;
+      transform: rotateX(0deg);
+      transition: transform 720ms cubic-bezier(.2,.95,.2,1);
+      background: linear-gradient(180deg, rgba(255,45,85,.22), rgba(255,45,85,.12));
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+      border-bottom:2px solid rgba(27,11,13,.22);
+      z-index:3;
+    }
+
+    .front{
+      position:absolute; inset:0;
+      z-index:4;
+      pointer-events:none;
+    }
+    .front:before{
+      content:"";
+      position:absolute; left:-2px; right:-2px; bottom:-2px; height:62%;
+      background: linear-gradient(180deg, rgba(255,243,230,.14), rgba(255,243,230,.10));
+      clip-path: polygon(0 0, 50% 72%, 100% 0, 100% 100%, 0 100%);
+      border-top:2px solid rgba(27,11,13,.20);
+    }
+
+    .seal{
+      position:absolute;
+      left:50%; top:56%;
+      transform: translate(-50%,-50%);
+      width:76px; height:76px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 25%, rgba(255,243,230,.9), rgba(255,231,210,.55));
+      border:2px solid var(--ink);
+      box-shadow: 0 14px 28px rgba(0,0,0,.18);
+      display:grid;
+      place-items:center;
+      z-index:5;
+    }
+    .seal span{font-size:22px}
+
+    .floatHearts{
+      position:absolute; inset:0; pointer-events:none;
+      opacity:.9;
+    }
+    .h{
+      position:absolute;
+      font-size:16px;
+      color: var(--red2);
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,.08));
+      animation: float 3.2s ease-in-out infinite;
+    }
+    .h:nth-child(1){left:10%; top:18%; animation-delay:.1s}
+    .h:nth-child(2){left:82%; top:22%; animation-delay:.7s}
+    .h:nth-child(3){left:18%; top:70%; animation-delay:1.2s}
+    .h:nth-child(4){left:76%; top:70%; animation-delay:1.8s}
+    @keyframes float{
+      0%,100%{transform: translateY(0)}
+      50%{transform: translateY(-10px)}
+    }
+
+    .open .flap{ transform: rotateX(-165deg); }
+    .open .paper{ transform: translateY(-6%); }
+
+    .btn{
+      appearance:none;border:2px solid var(--ink);cursor:pointer;
+      padding: 12px 16px;border-radius: 16px;
+      font-weight: 800;
+      color: var(--ink);
+      background: linear-gradient(135deg, rgba(255,45,85,.85), rgba(255,0,61,.75));
+      box-shadow: 0 18px 40px rgba(0,0,0,.12);
+      transition: transform .08s ease, filter .2s ease;
+      display:inline-flex;align-items:center;gap:10px;
+    }
+    .btn:active{transform: translateY(1px) scale(.99)}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+
+    /* ---------- PANTALLA 2 (retro blocks) ---------- */
+    .screen2 .frame{
+      border:2px solid var(--ink);
+      border-radius: var(--r);
+      background: rgba(255,243,230,.92);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .mast{
+      padding: 14px 16px;
+      border-bottom:2px solid var(--ink);
+      background: linear-gradient(180deg, rgba(255,45,85,.12), rgba(255,243,230,.0));
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    }
+    .logo{
+      font-family:"Instrument Serif", serif;
+      font-size: 34px;
+      letter-spacing:-.02em;
+      color: var(--red2);
+      text-shadow: 0 2px 0 rgba(27,11,13,.10);
+    }
+    .mastRight{
+      display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+      font-weight:700;font-size:12px;
+    }
+    .tag{
+      border:1.8px solid var(--ink);
+      padding:7px 10px;border-radius:999px;
+      background: rgba(255,243,230,.75);
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 14px;
+      padding: 14px;
+    }
+    @media (max-width: 900px){ .grid{grid-template-columns:1fr;} }
+
+    .panel{
+      border:2px solid var(--ink);
+      border-radius: 18px;
+      background: rgba(255,231,210,.55);
+      overflow:hidden;
+    }
+    .panelHead{
+      padding: 12px 12px;
+      border-bottom:2px solid rgba(27,11,13,.18);
+      background: rgba(255,45,85,.10);
+    }
+    .panelHead h2{
+      margin:0;
+      font-family:"Instrument Serif", serif;
+      font-size: 26px;
+      letter-spacing:-.01em;
+    }
+    .panelHead p{margin:6px 0 0;line-height:1.4;font-size:14px}
+
+    .panelBody{padding: 12px 12px 14px;}
+
+    label{display:flex;justify-content:space-between;gap:10px;margin: 10px 0 6px;font-weight:800;}
+    label span{font-weight:700;opacity:.75;font-size:12px}
+    .req{color: var(--red2); font-weight:900;}
+
+    input, textarea{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 2px solid rgba(27,11,13,.24);
+      background: rgba(255,243,230,.92);
+      color: var(--ink);
+      outline:none;
+      font-size: 15px;
+    }
+    textarea{min-height:220px;resize:vertical;line-height:1.55}
+    input:focus, textarea:focus{
+      border-color: rgba(27,11,13,.45);
+      box-shadow: 0 0 0 4px rgba(255,45,85,.18);
+    }
+    .help{
+      margin-top:8px;
+      font-size:12px;
+      opacity:.78;
+      line-height:1.35;
+    }
+
+    .choice{
+      display:flex;gap:10px;flex-wrap:wrap;
+      margin: 10px 0 6px;
+    }
+    .chip{
+      display:flex;align-items:center;gap:10px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border:2px solid rgba(27,11,13,.24);
+      background: rgba(255,243,230,.78);
+      cursor:pointer;
+      user-select:none;
+      font-weight:800;
+      font-size: 13px;
+    }
+    .chip input{width:auto}
+    .chip.active{
+      background: rgba(255,45,85,.14);
+      border-color: rgba(27,11,13,.34);
+    }
+
+    .actions{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+      margin-top: 12px;
+    }
+    .ghost{
+      padding: 12px 14px;border-radius: 14px;
+      border:2px solid rgba(27,11,13,.24);
+      background: rgba(255,243,230,.60);
+      cursor:pointer;
+      font-weight:900;
+    }
+
+    .progress{
+      width:100%; height:10px; border-radius:999px;
+      background: rgba(27,11,13,.10);
+      border:2px solid rgba(27,11,13,.16);
+      overflow:hidden;
+      margin-top: 12px;
+      display:none;
+    }
+    .bar{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(255,45,85,.95), rgba(255,0,61,.92));
+      transition: width .25s ease;
+    }
+
+    .msg{margin:12px 0 0;line-height:1.35;font-weight:700}
+    .ok{color:#0f8a62}
+    .err{color:#b00020}
+
+    .side{
+      display:flex;flex-direction:column;gap:14px;
+    }
+    .note{
+      border:2px solid rgba(27,11,13,.24);
+      border-radius: 18px;
+      background: rgba(255,243,230,.84);
+      padding: 12px 12px;
+      line-height:1.4;
+      font-size:14px;
+      font-weight:700;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- Pantalla 1 -->
+    <section id="screen1" class="screen1">
+      <div class="s1Card">
+        <div class="s1Top">
+          <div class="miniNav">
+            <span class="pill">Inbox</span>
+            <span class="pill">Drafts</span>
+            <span class="pill">Sent</span>
+          </div>
+          <div class="pill">❤</div>
+        </div>
+
+        <div class="s1Body">
+          <div class="envWrap">
+            <div class="floatHearts">
+              <div class="h">❤</div><div class="h">❤</div><div class="h">❤</div><div class="h">❤</div>
+            </div>
+
+            <div class="envelope" id="envelope">
+              <div class="envBack"></div>
+              <div class="paper"></div>
+              <div class="flap"></div>
+              <div class="front"></div>
+              <div class="seal"><span>✉</span></div>
+            </div>
+          </div>
+
+          <div class="s1Title">Gracias por participar</div>
+          <p class="s1Sub">Abrí el sobre para escribir tu carta.</p>
+
+          <div class="onlyLine"><span class="heartDot"></span><span>La carta solo la lee Iván.</span></div>
+
+          <div style="margin-top:16px;">
+            <button class="btn" id="openBtn"><span>Abrir</span><span aria-hidden="true">→</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pantalla 2 -->
+    <section id="screen2" class="screen2 hidden">
+      <div class="frame">
+        <div class="mast">
+          <div class="logo">letters</div>
+          <div class="mastRight">
+            <span class="tag">La carta solo la lee Iván.</span>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="panel">
+            <div class="panelHead">
+              <h2>Tu carta</h2>
+              <p>Elegí escribir acá o subir un PDF si la hiciste a mano.</p>
+            </div>
+
+            <div class="panelBody">
+              <label for="nombre">Nombre y apellido <span><span class="req">*</span> obligatorio</span></label>
+              <input id="nombre" placeholder="Escribí tu nombre" autocomplete="name" />
+
+              <label for="foto">Foto <span><span class="req">*</span> obligatoria</span></label>
+              <input id="foto" type="file" accept="image/*" />
+
+              <div class="choice" id="modeWrap">
+                <label class="chip active" id="chipText">
+                  <input type="radio" name="mode" value="text" checked />
+                  Escribir acá
+                </label>
+                <label class="chip" id="chipPdf">
+                  <input type="radio" name="mode" value="pdf" />
+                  Subir PDF
+                </label>
+              </div>
+
+              <div id="textBlock">
+                <label for="carta">Carta <span>(texto)</span></label>
+                <textarea id="carta" placeholder="Escribí acá…"></textarea>
+                <div class="help">Puede ser tan larga como quieras: una línea o varias páginas. No hay límite.</div>
+              </div>
+
+              <div id="pdfBlock" class="hidden">
+                <label for="pdf">PDF <span><span class="req">*</span> si elegís PDF</span></label>
+                <input id="pdf" type="file" accept="application/pdf" />
+                <div class="help">Subí un PDF escaneado de tu carta escrita a mano.</div>
+              </div>
+
+              <div class="actions">
+                <button class="btn" id="enviar"><span>Enviar</span><span aria-hidden="true">→</span></button>
+                <button class="ghost" id="limpiar" type="button">Limpiar</button>
+              </div>
+
+              <div class="progress" id="progress"><div class="bar" id="bar"></div></div>
+              <p class="msg" id="msg"></p>
+            </div>
+          </div>
+
+          <div class="side">
+            <div class="note">
+              Tip: si preferís, podés escribir a mano, escanear y subir el PDF.
+            </div>
+            <div class="note">
+              Si vas por texto: separá en párrafos, como te salga.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+<script>
+/** CONFIG **/
+const SUPABASE_URL = "https://rjbsaqslkzcuhjlmputd.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_sWlRTv7b0wO8XCX2Hlc3Pw_20lgnHcx";
+const PUBLIC_KEY_B64 =
+"MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA0ERTxBRnR6FMD7Slybj7sU3g+djvvfpiK26C0W0c6Ie/rmlXHZLB3hz+VyMpO7yVfsIM5jt+W+hjS7GeiNFSVG71kRUr9/u8yG1J31WKK4StHaiS4NNEkcnkNEzyWMLZ3W20zy8JYGrFgPL6eIEWC3rqekg121WWGJTazG3rPHOSbHTaReCas675ffACiCbtHWYGwRKPhI5EbQVk9/hC4bSWF5bW7vr7RIUk6H4rQuiJ0gfFhsL9kO8V9lu66tGEARU5wPCHWvJik+PREPFuZO1KL4xzE2TssWNUwJ2OBdxESmXLtWX664BDoMv7/rhswBWL3VLBqDB9GqySgJmcQgWg3a9SOzyWjGywnK4pWPNKSv95ybPcyRbbrynlZ9tXpSopvbZn8JS016lIoTjZvI0n7SB54GkAMdwQdk0lypsWvnCKO1+HMlNkIRsase6ki4p0OqukxcZ2zQvJl9n8sUYEnfXup92xZ5oIRiapLlrKjo0DVAVNLKIPAyYb10wPpMHP2iH+hTdpQ4ptZBejBnZ74Uci9efjVU00nRjRRXRrqXYa8rbQABIgZg12+vO0qMZVLT0KEqVsTwPioQJlIPXuI6UQ8Lub8OfPxtRalwJvVz8JLjsoIy81HODrbc/ARqic5sJqkP4Axvebe4vwxzvtgbTxsgKl+j9NrxozbzsCAwEAAQ==";
+
+/** helpers **/
+const $ = (id) => document.getElementById(id);
+const b64ToBytes = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+const textToBytes = (txt) => new TextEncoder().encode(txt);
+const bytesToB64 = (bytes) => btoa(String.fromCharCode(...bytes));
+
+function setMsg(text, kind){
+  const msg = $("msg");
+  msg.className = "msg " + (kind || "");
+  msg.textContent = text || "";
+}
+function setProgress(p){
+  $("progress").style.display = "block";
+  $("bar").style.width = `${p}%`;
+}
+function resetProgress(){
+  $("progress").style.display = "none";
+  $("bar").style.width = "0%";
+}
+
+async function importPublicKey(publicB64){
+  const spki = b64ToBytes(publicB64).buffer;
+  return crypto.subtle.importKey(
+    "spki",
+    spki,
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    false,
+    ["encrypt"]
+  );
+}
+async function encryptToB64(publicKey, plaintext){
+  const aesKey = await crypto.subtle.generateKey({name:"AES-GCM", length:256}, true, ["encrypt","decrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const pt = textToBytes(plaintext);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, aesKey, pt));
+  const rawAes = new Uint8Array(await crypto.subtle.exportKey("raw", aesKey));
+  const encAes = new Uint8Array(await crypto.subtle.encrypt({name:"RSA-OAEP"}, publicKey, rawAes));
+
+  const ivLen = iv.length;
+  const encLen = encAes.length;
+  const out = new Uint8Array(1 + ivLen + 2 + encLen + ct.length);
+  let o=0;
+  out[o++] = ivLen;
+  out.set(iv, o); o += ivLen;
+  out[o++] = (encLen >> 8) & 255;
+  out[o++] = encLen & 255;
+  out.set(encAes, o); o += encLen;
+  out.set(ct, o);
+  return bytesToB64(out);
+}
+
+async function supaFetch(path, options){
+  return fetch(`${SUPABASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      ...(options?.headers || {})
+    }
+  });
+}
+
+async function uploadToBucket(file, prefix){
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const safe = ext.replace(/[^a-z0-9]/g,'') || 'bin';
+  const name = `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}.${safe}`;
+
+  const res = await supaFetch(`/storage/v1/object/fotos/${name}`, {
+    method: "POST",
+    headers: { "Content-Type": file.type || "application/octet-stream" },
+    body: file
+  });
+
+  if(!res.ok){
+    const t = await res.text();
+    throw new Error("No se pudo subir el archivo: " + t);
+  }
+  return name;
+}
+
+/** UI: pantallas **/
+$("openBtn").onclick = () => {
+  const env = $("envelope");
+  env.classList.add("open");
+  $("openBtn").disabled = true;
+
+  setTimeout(() => {
+    $("screen1").classList.add("hidden");
+    $("screen2").classList.remove("hidden");
+  }, 660);
+};
+
+function setMode(mode){
+  const isText = mode === "text";
+  $("textBlock").classList.toggle("hidden", !isText);
+  $("pdfBlock").classList.toggle("hidden", isText);
+  $("chipText").classList.toggle("active", isText);
+  $("chipPdf").classList.toggle("active", !isText);
+  setMsg("");
+}
+document.querySelectorAll('input[name="mode"]').forEach(r => {
+  r.addEventListener("change", () => setMode(r.value));
+});
+
+$("limpiar").onclick = () => {
+  $("nombre").value = "";
+  $("foto").value = "";
+  $("carta").value = "";
+  $("pdf").value = "";
+  setMode(document.querySelector('input[name="mode"]:checked').value);
+  setMsg("");
+  resetProgress();
+};
+
+$("enviar").onclick = async () => {
+  const btn = $("enviar");
+  btn.disabled = true;
+  setMsg("Enviando…", "");
+  setProgress(10);
+
+  try{
+    const nombre = $("nombre").value.trim();
+    if(!nombre) throw new Error("El nombre es obligatorio.");
+
+    const fotoFile = $("foto").files?.[0] || null;
+    if(!fotoFile) throw new Error("La foto es obligatoria.");
+
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+
+    setProgress(24);
+    const foto_path = await uploadToBucket(fotoFile, "foto");
+
+    let ciphertext = null;
+    let pdf_path = null;
+
+    if(mode === "text"){
+      const carta = $("carta").value.trim();
+      if(!carta) throw new Error("Escribí la carta (o elegí subir PDF).");
+
+      setProgress(48);
+      const pubKey = await importPublicKey(PUBLIC_KEY_B64);
+      ciphertext = await encryptToB64(pubKey, carta);
+    } else {
+      const pdfFile = $("pdf").files?.[0] || null;
+      if(!pdfFile) throw new Error("Subí un PDF.");
+      if(pdfFile.type !== "application/pdf") throw new Error("El archivo tiene que ser PDF.");
+
+      setProgress(48);
+      pdf_path = await uploadToBucket(pdfFile, "pdf");
+      ciphertext = null;
+    }
+
+    setProgress(72);
+    const ins = await supaFetch(`/rest/v1/cartas`, {
+      method: "POST",
+      headers: { "Content-Type":"application/json", "Prefer":"return=minimal" },
+      body: JSON.stringify({
+        nombre,
+        relacion: null,
+        foto_path,
+        pdf_path,
+        ciphertext
+      })
+    });
+
+    if(!ins.ok){
+      const t = await ins.text();
+      throw new Error("Error guardando: " + t);
+    }
+
+    setProgress(100);
+    setMsg("Enviado.", "ok");
+
+    $("carta").value = "";
+    $("pdf").value = "";
+    setTimeout(resetProgress, 900);
+
+  }catch(e){
+    setMsg(e.message || String(e), "err");
+    resetProgress();
+  }finally{
+    btn.disabled = false;
+  }
+};
+</script>
+</body>
+</html>
