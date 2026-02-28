@@ -97,12 +97,14 @@ async function fetchAllCartas(){
   return res.json();
 }
 
-/** ---- DESCARGA PDFs ---- **/
+const SITE_ORIGIN = "https://cartas-para-ivan.netlify.app";
+
 async function createSignedUrl(path){
-  const res = await fetch(`/.netlify/functions/sign-pdf?path=${encodeURIComponent(path)}`);
-  if(!res.ok) throw new Error(await res.text());
-  const data = await res.json();
-  return data.url; // ya viene firmada
+  const res = await fetch(`${SITE_ORIGIN}/.netlify/functions/sign-pdf?path=${encodeURIComponent(path)}`);
+  const text = await res.text();
+  if(!res.ok) throw new Error(text || `HTTP ${res.status}`);
+  const data = JSON.parse(text);
+  return data.url;
 }
   
 async function downloadBlob(url, filename){
