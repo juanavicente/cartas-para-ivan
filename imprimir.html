@@ -100,7 +100,7 @@ async function fetchAllCartas(){
 const SITE_ORIGIN = "https://cartas-para-ivan.netlify.app";
 
 async function createSignedUrl(path){
-  const fnUrl = new URL("/.netlify/functions/sign-pdf", window.location.origin);
+  const fnUrl = new URL("/.netlify/functions/sign-pdf", SITE_ORIGIN);
   fnUrl.searchParams.set("path", path);
 
   const res = await fetch(fnUrl.toString(), { method: "GET" });
