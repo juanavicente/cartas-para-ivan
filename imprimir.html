@@ -100,15 +100,17 @@ async function fetchAllCartas(){
 const SITE_ORIGIN = "https://cartas-para-ivan.netlify.app";
 
 async function createSignedUrl(path){
-  const fn = new URL("/.netlify/functions/sign-pdf", window.location.origin);
-  fn.searchParams.set("path", path);
+  const fnUrl = new URL("/.netlify/functions/sign-pdf", window.location.origin);
+  fnUrl.searchParams.set("path", path);
 
-  const res = await fetch(fn.toString());
+  const res = await fetch(fnUrl.toString(), { method: "GET" });
   const text = await res.text();
   if(!res.ok) throw new Error(text || `HTTP ${res.status}`);
+
   const data = JSON.parse(text);
   return data.url;
 }
+  
 async function downloadBlob(url, filename){
   const res = await fetch(url);
   if(!res.ok) throw new Error("No se pudo descargar: " + filename);
@@ -183,7 +185,7 @@ $("dlpdf").onclick = async () => {
 
     for(let i=0;i<pdfs.length;i++){
       const r = pdfs[i];
-      const signed = await createSignedUrl(r.pdf_path, 600);
+      const signed = await createSignedUrl(r.pdf_path);
       const num = String(i+1).padStart(3,"0");
       const filename = `carta_pdf_${num}_id${r.id}.pdf`;
       setStatus(`Descargando ${i+1}/${pdfs.length}: ${filename}`);
