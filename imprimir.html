@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cartas (orden de llegada)</title>
+
+  <!-- JSZip (para ZIP automático de PDFs) -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
   <style>
     body{margin:0;font-family:system-ui,Segoe UI,Arial;background:#0b1020;color:#e5e7eb;}
     .wrap{max-width:920px;margin:26px auto;padding:0 14px;}
@@ -17,6 +21,20 @@
     .btn3{background:#111827;color:#fff;border:1px solid rgba(255,255,255,.14)}
     #status{margin-top:10px;white-space:pre-wrap;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;font-size:12px;color:rgba(229,231,235,.9)}
     .warn{color:#ffd18a}
+
+    textarea{
+      width:100%;
+      min-height:110px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.16);
+      background:rgba(255,255,255,.04);
+      color:#e5e7eb;
+      padding:10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:12px;
+      box-sizing:border-box;
+      margin-top:10px;
+    }
 
     /* impresión texto */
     #printArea{display:none;}
@@ -42,19 +60,23 @@
 
     <div class="card">
       <div class="muted">
-        Este archivo funciona <b>solo en tu compu</b>.
-        <br><span class="warn">No lo subas a internet ni lo compartas</span> (contiene tus claves).
+        Este archivo está subido a Netlify, pero <b>la clave privada NO está guardada</b>.
+        <br><span class="warn">Pegá tu clave solo cuando vayas a imprimir</span> (mejor usar el archivo local).
         <br><br>
-        - <b>Imprimir textos</b>: imprime cartas escritas en texto (descifradas localmente).
+        - <b>Imprimir textos</b>: descifra localmente con tu clave (pegada abajo).
         <br>
-        - <b>Descargar PDFs</b>: descarga cartas escaneadas en PDF (en orden de llegada).
-        <br><br>
-        <b>No se descargan fotos.</b>
+        - <b>Descargar PDFs</b>: descarga PDFs uno por uno (orden de llegada).
+        <br>
+        - <b>Descargar ZIP</b>: arma un ZIP con todos los PDFs (orden de llegada).
       </div>
+
+      <div class="muted" style="margin-top:10px;"><b>Private Key (PKCS8 Base64)</b> (solo si vas a imprimir)</div>
+      <textarea id="pk" placeholder="Pegá acá tu PRIVATE_KEY_B64 (pkcs8 base64). No se sube a ningún lado."></textarea>
 
       <div class="row">
         <button class="btn2" id="printText">Imprimir textos</button>
         <button class="btn" id="dlpdf">Descargar PDFs</button>
+        <button class="btn" id="dlzip">Descargar ZIP</button>
         <button class="btn3" id="test">Probar conexión</button>
       </div>
 
@@ -69,13 +91,15 @@
 const SUPABASE_URL = "https://rjbsaqslkzcuhjlmputd.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_sWlRTv7b0wO8XCX2Hlc3Pw_20lgnHcx";
 
-// ⚠️ PEGÁ ACÁ tu private key (pkcs8 base64) (solo local)
-const PRIVATE_KEY_B64 = "";
+// SIEMPRE usar el origin del sitio (evita "failed to fetch" cuando se abre local)
+const SITE_ORIGIN = "https://cartas-para-ivan.netlify.app";
 
 /** helpers **/
 const $ = (id) => document.getElementById(id);
 const b64ToBytes = (b64) => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 const bytesToText = (bytes) => new TextDecoder().decode(bytes);
+
+function setStatus(t){ $("status").textContent = t; }
 
 async function supaFetch(path, options){
   return fetch(`${SUPABASE_URL}${path}`, {
@@ -89,15 +113,12 @@ async function supaFetch(path, options){
 }
 
 async function fetchAllCartas(){
-  // NO traemos foto_path (para evitar cualquier uso accidental)
   const res = await supaFetch(`/rest/v1/cartas?select=id,created_at,ciphertext,pdf_path&order=created_at.asc`, {
     method: "GET"
   });
   if(!res.ok) throw new Error(await res.text());
   return res.json();
 }
-
-const SITE_ORIGIN = "https://cartas-para-ivan.netlify.app";
 
 async function createSignedUrl(path){
   const fnUrl = new URL("/.netlify/functions/sign-pdf", SITE_ORIGIN);
@@ -110,10 +131,10 @@ async function createSignedUrl(path){
   const data = JSON.parse(text);
   return data.url;
 }
-  
+
 async function downloadBlob(url, filename){
   const res = await fetch(url);
-  if(!res.ok) throw new Error("No se pudo descargar: " + filename);
+  if(!res.ok) throw new Error("No se pudo descargar: " + filename + ` (HTTP ${res.status})`);
   const blob = await res.blob();
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -128,15 +149,28 @@ async function downloadBlob(url, filename){
 
 /** ---- IMPRESIÓN TEXTO (descifrado) ---- **/
 async function importPrivateKey(privateB64){
-  const pkcs8 = b64ToBytes(privateB64).buffer;
-  return crypto.subtle.importKey(
-    "pkcs8",
-    pkcs8,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    false,
-    ["decrypt"]
-  );
+  const b64 = (privateB64 || "").trim();
+  if(!b64) throw new Error("Pegá tu PRIVATE KEY (PKCS8 base64) en el cuadro de arriba.");
+  let pkcs8;
+  try{
+    pkcs8 = b64ToBytes(b64).buffer;
+  }catch{
+    throw new Error("La clave no parece Base64 válido.");
+  }
+
+  try{
+    return crypto.subtle.importKey(
+      "pkcs8",
+      pkcs8,
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      false,
+      ["decrypt"]
+    );
+  }catch(e){
+    throw new Error("No se pudo importar la clave (¿está en PKCS8? ¿está completa?).");
+  }
 }
+
 function parseHybridB64(cipherB64){
   const data = b64ToBytes(cipherB64);
   let o = 0;
@@ -147,6 +181,7 @@ function parseHybridB64(cipherB64){
   const ct = data.slice(o);
   return { iv, encAes, ct };
 }
+
 async function hybridDecrypt(privateKey, cipherB64){
   const { iv, encAes, ct } = parseHybridB64(cipherB64);
   const rawAes = new Uint8Array(await crypto.subtle.decrypt({name:"RSA-OAEP"}, privateKey, encAes));
@@ -156,8 +191,6 @@ async function hybridDecrypt(privateKey, cipherB64){
 }
 
 /** UI actions **/
-function setStatus(t){ $("status").textContent = t; }
-
 $("test").onclick = async () => {
   setStatus("Probando conexión…");
   try{
@@ -190,10 +223,67 @@ $("dlpdf").onclick = async () => {
       const filename = `carta_pdf_${num}_id${r.id}.pdf`;
       setStatus(`Descargando ${i+1}/${pdfs.length}: ${filename}`);
       await downloadBlob(signed, filename);
-      await new Promise(res => setTimeout(res, 650)); // pausa para evitar bloqueo
+      await new Promise(res => setTimeout(res, 650));
     }
 
     setStatus(`Listo. Descargados ${pdfs.length} PDF(s).`);
+  }catch(e){
+    setStatus("Error: " + (e.message || String(e)));
+  }
+};
+
+$("dlzip").onclick = async () => {
+  try{
+    setStatus("Buscando PDFs...");
+    const rows = await fetchAllCartas();
+    const pdfs = rows.filter(r => r.pdf_path);
+
+    if(!pdfs.length){
+      setStatus("No hay PDFs para zippear.");
+      return;
+    }
+
+    if(typeof JSZip === "undefined") throw new Error("JSZip no cargó (revisá el <script> del CDN).");
+
+    const zip = new JSZip();
+    const folder = zip.folder("cartas_pdfs");
+
+    setStatus(`PDFs encontrados: ${pdfs.length}\nDescargando y armando ZIP...`);
+
+    for(let i=0;i<pdfs.length;i++){
+      const r = pdfs[i];
+      const num = String(i+1).padStart(3,"0");
+      const filename = `carta_pdf_${num}_id${r.id}.pdf`;
+
+      setStatus(`(${i+1}/${pdfs.length}) Firmando URL: ${filename}`);
+      const signed = await createSignedUrl(r.pdf_path);
+
+      setStatus(`(${i+1}/${pdfs.length}) Bajando: ${filename}`);
+      const res = await fetch(signed);
+      if(!res.ok) throw new Error(`No se pudo descargar ${filename} (HTTP ${res.status})`);
+      const arr = await res.arrayBuffer();
+
+      folder.file(filename, arr);
+
+      await new Promise(x => setTimeout(x, 150));
+    }
+
+    setStatus("Generando ZIP (puede tardar un poco)...");
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+
+    const outName = `cartas_pdfs_${new Date().toISOString().slice(0,10)}.zip`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = outName;
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 2000);
+
+    setStatus(`Listo ✅ ZIP descargado: ${outName}`);
   }catch(e){
     setStatus("Error: " + (e.message || String(e)));
   }
@@ -211,7 +301,8 @@ $("printText").onclick = async () => {
     }
 
     setStatus(`Textos encontrados: ${texts.length}\nDescifrando localmente…`);
-    const privKey = await importPrivateKey(PRIVATE_KEY_B64);
+
+    const privKey = await importPrivateKey($("pk").value);
 
     const printArea = document.getElementById("printArea");
     printArea.innerHTML = "";
@@ -238,5 +329,4 @@ $("printText").onclick = async () => {
 };
 </script>
 </body>
-
 </html>
