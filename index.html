@@ -574,12 +574,20 @@ async function supaFetch(path, options){
   });
 }
 
+/**
+ * ✅ CAMBIO: usa 2 buckets
+ * - fotos -> bucket "fotos"
+ * - pdfs  -> bucket "pdfs"
+ */
 async function uploadToBucket(file, prefix){
   const ext = (file.name.split('.').pop() || '').toLowerCase();
   const safe = ext.replace(/[^a-z0-9]/g,'') || 'bin';
   const name = `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}.${safe}`;
 
-  const res = await supaFetch(`/storage/v1/object/fotos/${name}`, {
+  // ✅ Elegimos bucket según el tipo
+  const bucket = (prefix === "pdf") ? "pdfs" : "fotos";
+
+  const res = await supaFetch(`/storage/v1/object/${bucket}/${name}`, {
     method: "POST",
     headers: { "Content-Type": file.type || "application/octet-stream" },
     body: file
@@ -660,6 +668,7 @@ $("enviar").onclick = async () => {
       if(pdfFile.type !== "application/pdf") throw new Error("El archivo tiene que ser PDF.");
 
       setProgress(48);
+      // ✅ PDF va al bucket "pdfs"
       pdf_path = await uploadToBucket(pdfFile, "pdf");
       ciphertext = null;
     }
