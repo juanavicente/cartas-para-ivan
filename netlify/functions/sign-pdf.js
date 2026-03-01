@@ -23,7 +23,7 @@ exports.handler = async (event) => {
     const BUCKET = process.env.SUPABASE_BUCKET || "fotos";
 
     const res = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${encodeURIComponent(path)}`,
+     `${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${encodeURI(path)}`,
       {
         method: "POST",
         headers: {
