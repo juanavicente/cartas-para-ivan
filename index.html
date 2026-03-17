@@ -645,12 +645,13 @@ $("enviar").onclick = async () => {
     if(!nombre) throw new Error("El nombre es obligatorio.");
 
     const fotoFile = $("foto").files?.[0] || null;
-    if(!fotoFile) throw new Error("La foto es obligatoria.");
+const mode = document.querySelector('input[name="mode"]:checked').value;
 
-    const mode = document.querySelector('input[name="mode"]:checked').value;
-
-    setProgress(24);
-    const foto_path = await uploadToBucket(fotoFile, "foto");
+let foto_path = null;
+if(fotoFile){
+  setProgress(24);
+  foto_path = await uploadToBucket(fotoFile, "foto");
+}
 
     let ciphertext = null;
     let pdf_path = null;
@@ -692,11 +693,18 @@ $("enviar").onclick = async () => {
     }
 
     setProgress(100);
-    setMsg("Enviado.", "ok");
+setMsg("Enviado.", "ok");
 
-    $("carta").value = "";
-    $("pdf").value = "";
-    setTimeout(resetProgress, 900);
+$("nombre").value = "";
+$("foto").value = "";
+$("carta").value = "";
+$("pdf").value = "";
+setMode("text");
+
+setTimeout(() => {
+  resetProgress();
+  setMsg("");
+}, 900);
 
   }catch(e){
     setMsg(e.message || String(e), "err");
